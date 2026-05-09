@@ -20,6 +20,11 @@ class Game:
         self.splash_timer = 0
         self.boss_log_saved = False
         self.total_stats = []
+        self.player = None
+        self.enemies = []
+        self.bullets = []
+        self.frame_count = 0
+        self.game_map = None
 
     def reset_level(self):
         self.game_map = GameMap(self.level)
@@ -52,6 +57,9 @@ class Game:
             self.enemy_pool = ['basic']*10
 
     def handle_input(self):
+        if self.game_state not in ["PLAYING", "BOSS_FIGHT"] or self.player is None:
+            return
+
         keys = pygame.key.get_pressed()
         
         if self.player.active:

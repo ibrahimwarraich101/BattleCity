@@ -10,6 +10,7 @@ class GameMap:
 
     def generate_map(self, level):
         while True:
+            pygame.event.pump() # Keep window responsive
             self.grid = [[EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
             
             # Place Eagle
@@ -65,17 +66,26 @@ class GameMap:
                 if self.grid[y][x] != EMPTY: continue
                 # Skip spawn zones (top row)
                 if y == 0 and (x == 0 or x == 12 or x == 24): continue
-                # Fairness: No block within 10 Manhattan distance of player start (4,24)
+                
+                # Proximity to spawns/eagle for Steel/Water prevention
+                is_near_critical = False
+                for sx, sy in ENEMY_SPAWNS + [EAGLE_POS]:
+                    if abs(x - sx) + abs(y - sy) <= 2:
+                        is_near_critical = True
+                        break
+                
+                # Fairness: No block within distance of player start (4,24)
                 if abs(x - PLAYER_SPAWN[0]) + abs(y - PLAYER_SPAWN[1]) < 8: continue
                 
-                tiles_to_fill.append((x, y))
+                tiles_to_fill.append((x, y, is_near_critical))
 
         random.shuffle(tiles_to_fill)
         
         wall_count = sum(row.count(BRICK) + row.count(STEEL) + row.count(WATER) for row in self.grid)
         max_walls = int(TOTAL_TILES * MAX_WALL_DENSITY)
 
-        for x, y in tiles_to_fill:
+        for info in tiles_to_fill:
+            x, y = info[0], info[1]
             if wall_count >= max_walls:
                 break
             
@@ -86,7 +96,11 @@ class GameMap:
             for t, w in weights.items():
                 cumulative += w
                 if r < cumulative:
-                    chosen = t
+                    # If near spawn/eagle, don't place Steel(2) or Water(3)
+                    if info[2] and t in [STEEL, WATER]:
+                        chosen = BRICK # Downgrade to brick if near critical
+                    else:
+                        chosen = t
                     break
             
             if chosen != EMPTY:
