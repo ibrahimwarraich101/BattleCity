@@ -8,6 +8,9 @@ HUD_WIDTH = 120
 SCREEN_WIDTH = GAME_AREA_WIDTH + HUD_WIDTH
 SCREEN_HEIGHT = GRID_SIZE * TILE_SIZE
 FPS = 30
+MENU_FONT_SIZE = 48
+STATS_FONT_SIZE = 14
+STAGE_SPLASH_TIME = 60 # 2 seconds
 
 # Colors
 COLOR_EMPTY = (26, 26, 26)      # #1a1a1a
@@ -24,6 +27,10 @@ COLOR_PLAYER = (0, 255, 0)
 COLOR_ENEMY_BASIC = (150, 150, 150)
 COLOR_ENEMY_FAST = (255, 255, 255)
 COLOR_ENEMY_ARMOR = (139, 0, 0)
+COLOR_BOSS_P1 = (255, 215, 0) # Gold
+COLOR_BOSS_P2 = (255, 140, 0) # Orange
+COLOR_BOSS_P3 = (255, 0, 0)   # Red
+COLOR_HP_BAR = (200, 0, 0)
 COLOR_ENEMY_BOSS = (255, 215, 0)
 
 # Tile Types
@@ -55,3 +62,15 @@ BULLET_SPEED = 2 # 2 tiles per tick
 PLAYER_LIVES = 10
 TOTAL_ENEMIES_PER_LEVEL = 20
 MAX_ACTIVE_ENEMIES = 3
+
+# Boss Stats
+BOSS_HP_MAX = 10
+BOSS_SPAWN = (17, 8)
+BOSS_PLAYER_SPAWN = (8, 17)
+
+# Boss Phases
+BOSS_PHASES = {
+    1: {'hp': (7, 10), 'speed': 4, 'fire_rate': 60, 'depth': 2},
+    2: {'hp': (3, 6), 'speed': 3, 'fire_rate': 45, 'depth': 3},
+    3: {'hp': (1, 2), 'speed': 2, 'fire_rate': 24, 'depth': 4}
+}

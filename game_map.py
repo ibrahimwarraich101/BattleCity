@@ -37,10 +37,9 @@ class GameMap:
                             self.grid[ny][nx] = BRICK
 
             # Boss Level special layout
-            if level == 99: # Assuming 99 is boss level
+            if level == 'B':
                 self._generate_boss_level()
-                if self.is_valid_map(): break
-                continue
+                break
 
             # Fill the rest using CSP-like approach (Randomized with constraints)
             if self._fill_map_csp(level):
@@ -97,19 +96,32 @@ class GameMap:
         return True
 
     def _generate_boss_level(self):
-        # Small 12x12 arena in the center, rest are walls
-        center_start = (GRID_SIZE - 12) // 2
+        # 12x12 arena in center (7..18)
+        # Surround everything else with Steel
         for y in range(GRID_SIZE):
             for x in range(GRID_SIZE):
-                if center_start <= x < center_start + 12 and center_start <= y < center_start + 12:
+                if 7 <= x <= 18 and 7 <= y <= 18:
                     self.grid[y][x] = EMPTY
                 else:
                     self.grid[y][x] = STEEL
-        # Ensure eagle and spawns are accessible
-        self.grid[EAGLE_POS[1]][EAGLE_POS[0]] = EAGLE
-        self.grid[PLAYER_SPAWN[1]][PLAYER_SPAWN[0]] = EMPTY
-        for sx, sy in ENEMY_SPAWNS:
-            self.grid[sy][sx] = EMPTY
+        
+        # Scattered bricks
+        for _ in range(20):
+            rx, ry = random.randint(8, 17), random.randint(8, 17)
+            if (rx, ry) != BOSS_SPAWN and (rx, ry) != BOSS_PLAYER_SPAWN:
+                self.grid[ry][rx] = BRICK
+        
+        # Steel pillar clusters (2x2)
+        pillars = [(9,9), (15,15)]
+        for px, py in pillars:
+            for dx in range(2):
+                for dy in range(2):
+                    self.grid[py+dy][px+dx] = STEEL
+        
+        # Water patch (2x3) bottom-left of arena
+        for dx in range(3):
+            for dy in range(2):
+                self.grid[16+dy][8+dx] = WATER
 
     def is_valid_map(self):
         # BFS Reachability check from all spawns to Eagle

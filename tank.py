@@ -151,16 +151,99 @@ class EnemyTank(Tank):
             'player_pos': (player.x, player.y) if player.active else None,
             'eagle_pos': EAGLE_POS,
             'tanks': tanks,
-            'bullets': bullets
+            'bullets': bullets,
+            'player': player,
+            'boss': self
         }
         
-        action_type, action_value = self.agent.decide(self, game_state)
+        if self.tank_type == 'boss':
+            action, n_raw, n_pruned = self.agent.decide(self, game_state)
+            self.last_stats = (n_raw, n_pruned)
+            action_type, action_value = action
+        else:
+            action_type, action_value = self.agent.decide(self, game_state)
         
         if action_type == 'move':
             self.move(action_value, game_map, tanks)
         elif action_type == 'shoot':
             self.shoot(bullets, action_value)
         
-        # Handle Power Tank speed (+1 speed = less cooldown)
+        # Handle Power Tank speed
         if self.tank_type == 'power' and self.move_cooldown > 0:
-            self.move_cooldown = 1 # Default is 2, power is 1
+            self.move_cooldown = 1
+
+class BossTank(EnemyTank):
+    def __init__(self, x, y):
+        super().__init__(x, y, 'boss')
+        from agents.boss_tank_agent import BossAgent
+        self.agent = BossAgent()
+        self.hp = BOSS_HP_MAX
+        self.color = COLOR_BOSS_P1
+        self.last_stats = (0, 0)
+        self.phase = 1
+
+    def update_ai(self, game_map, tanks, bullets, player):
+        # HP-based Phase System
+        for p, data in BOSS_PHASES.items():
+            if data['hp'][0] <= self.hp <= data['hp'][1]:
+                self.phase = p
+                break
+        
+        # Update Stats/Visuals based on Phase
+        phase_data = BOSS_PHASES[self.phase]
+        if self.phase == 1: self.color = COLOR_BOSS_P1
+        elif self.phase == 2: self.color = COLOR_BOSS_P2
+        elif self.phase == 3: self.color = COLOR_BOSS_P3
+        
+        # Movement speed controlled by cooldown
+        if self.move_cooldown <= 0:
+            super().update_ai(game_map, tanks, bullets, player)
+            self.move_cooldown = phase_data['speed']
+        else:
+            self.move_cooldown -= 1
+
+    def draw(self, screen):
+        if not self.active: return
+        
+        # Phase Visual Effects
+        offset_x, offset_y = 0, 0
+        draw_color = self.color
+        
+        if self.phase == 2:
+            # Pulsing glow
+            pulse = (math.sin(pygame.time.get_ticks() * 0.01) + 1) / 2
+            draw_color = (
+                int(self.color[0] * (0.7 + 0.3 * pulse)),
+                int(self.color[1] * (0.7 + 0.3 * pulse)),
+                int(self.color[2] * (0.7 + 0.3 * pulse))
+            )
+        elif self.phase == 3:
+            # Screen shake / offset
+            if pygame.time.get_ticks() % 5 == 0:
+                offset_x = random.randint(-2, 2)
+                offset_y = random.randint(-2, 2)
+        
+        # HP Bar
+        bar_width = TILE_SIZE
+        bar_height = 4
+        pygame.draw.rect(screen, (0,0,0), (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 6 + offset_y, bar_width, bar_height))
+        fill_width = int(bar_width * (self.hp / BOSS_HP_MAX))
+        pygame.draw.rect(screen, COLOR_HP_BAR, (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 6 + offset_y, fill_width, bar_height))
+
+        # Flash effect
+        if self.flash_timer > 0:
+            self.flash_timer -= 1
+            if self.flash_timer % 2 == 0:
+                draw_color = (255, 255, 255)
+
+        rect = pygame.Rect(self.x * TILE_SIZE + offset_x, self.y * TILE_SIZE + offset_y, TILE_SIZE, TILE_SIZE)
+        pygame.draw.rect(screen, draw_color, rect)
+        
+        # Direction indicator
+        center = (self.x * TILE_SIZE + TILE_SIZE // 2 + offset_x, self.y * TILE_SIZE + TILE_SIZE // 2 + offset_y)
+        size = 8
+        if self.direction == UP: pts = [(center[0], center[1]-size), (center[0]-size, center[1]), (center[0]+size, center[1])]
+        elif self.direction == DOWN: pts = [(center[0], center[1]+size), (center[0]-size, center[1]), (center[0]+size, center[1])]
+        elif self.direction == LEFT: pts = [(center[0]-size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
+        elif self.direction == RIGHT: pts = [(center[0]+size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
+        pygame.draw.polygon(screen, (0, 0, 0), pts)
