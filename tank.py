@@ -16,13 +16,23 @@ class Tank:
         self.hp_lost = 0 # To track damage for agents
         self.active = True
         self.move_cooldown = 0
+        self.shoot_cooldown = 0
         self.bullet = None
         self.respawn_timer = 0
+        
+        # Stats (Default: Player)
+        self.speed_stat = 2 
+        self.fire_rate_stat = 30 # Default 1s
         
         # Agent state
         self.path = []
         self.ticks_since_path = 0
         self.flash_timer = 0
+    
+    def update(self):
+        if self.move_cooldown > 0: self.move_cooldown -= 1
+        if self.shoot_cooldown > 0: self.shoot_cooldown -= 1
+        if self.flash_timer > 0: self.flash_timer -= 1
 
     def move(self, direction, game_map, other_tanks):
         if isinstance(direction, str):
@@ -32,7 +42,6 @@ class Tank:
         self.direction = direction
         
         if self.move_cooldown > 0:
-            self.move_cooldown -= 1
             return False
 
         dx, dy = direction
@@ -52,7 +61,7 @@ class Tank:
 
         self.x = nx
         self.y = ny
-        self.move_cooldown = 2
+        self.move_cooldown = self.speed_stat
         return True
 
     def shoot(self, bullets, direction=None):
@@ -60,11 +69,15 @@ class Tank:
             mapping = {'up': UP, 'down': DOWN, 'left': LEFT, 'right': RIGHT}
             self.direction = mapping.get(direction, self.direction)
 
+        if self.shoot_cooldown > 0:
+            return False
+
         if self.bullet is None or not self.bullet.active:
             bx, by = self.x + self.direction[0], self.y + self.direction[1]
             if 0 <= bx < GRID_SIZE and 0 <= by < GRID_SIZE:
                 self.bullet = Bullet(bx, by, self.direction, self)
                 bullets.append(self.bullet)
+                self.shoot_cooldown = self.fire_rate_stat
                 return True
         return False
 
@@ -80,7 +93,6 @@ class Tank:
         
         color = self.color
         if self.flash_timer > 0:
-            self.flash_timer -= 1
             if self.flash_timer % 2 == 0:
                 color = (255, 255, 255) # White flash
 
@@ -126,24 +138,35 @@ class EnemyTank(Tank):
             super().__init__(x, y, DOWN, COLOR_ENEMY_BASIC)
             self.agent = basic_agent
             self.hp = 1
+            self.speed_stat = 4
+            self.fire_rate_stat = 90 # 3 seconds
         elif tank_type == 'fast':
             super().__init__(x, y, DOWN, COLOR_ENEMY_FAST)
             self.agent = fast_agent
             self.hp = 1
+            self.speed_stat = 2
+            self.fire_rate_stat = 45 # 1.5 seconds
         elif tank_type == 'armor':
             super().__init__(x, y, DOWN, COLOR_ENEMY_ARMOR)
             self.agent = armor_agent
             self.hp = 4 # Needs 3 hits to retreat (4 total to die)
+            self.speed_stat = 3
+            self.fire_rate_stat = 60 # 2 seconds
         elif tank_type == 'power':
             super().__init__(x, y, DOWN, (200, 100, 0))
             self.agent = armor_agent # Uses Armor AI
             self.hp = 4
-            self.move_speed = 1 # We'll handle speed by cooldown
+            self.speed_stat = 2 # Slightly increased speed (1/2)
+            self.fire_rate_stat = 60
+        elif tank_type == 'boss':
+            super().__init__(x, y, DOWN, COLOR_BOSS_P1)
+            # HP and Agent handled in BossTank subclass
         
         self.tank_type = tank_type
 
     def update_ai(self, game_map, tanks, bullets, player):
         self.ticks_since_path += 1
+        self.update() # Handle cooldowns
         
         # Prepare game state for agent
         game_state = {
@@ -191,16 +214,15 @@ class BossTank(EnemyTank):
         
         # Update Stats/Visuals based on Phase
         phase_data = BOSS_PHASES[self.phase]
+        self.speed_stat = phase_data['speed']
+        self.fire_rate_stat = phase_data['fire_rate']
+        
         if self.phase == 1: self.color = COLOR_BOSS_P1
         elif self.phase == 2: self.color = COLOR_BOSS_P2
         elif self.phase == 3: self.color = COLOR_BOSS_P3
         
-        # Movement speed controlled by cooldown
-        if self.move_cooldown <= 0:
-            super().update_ai(game_map, tanks, bullets, player)
-            self.move_cooldown = phase_data['speed']
-        else:
-            self.move_cooldown -= 1
+        # Decision and movement
+        super().update_ai(game_map, tanks, bullets, player)
 
     def draw(self, screen):
         if not self.active: return
@@ -232,7 +254,6 @@ class BossTank(EnemyTank):
 
         # Flash effect
         if self.flash_timer > 0:
-            self.flash_timer -= 1
             if self.flash_timer % 2 == 0:
                 draw_color = (255, 255, 255)
 

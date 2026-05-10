@@ -26,19 +26,16 @@ class BossAgent:
         # Possible actions for Boss
         actions = self.get_actions(boss, game_state)
         
-        # Sort actions to improve pruning (heuristically)
-        # We'll just take them as they come for now
-        
         for action in actions:
             new_state = self.apply_action(game_state, boss, action)
+            # Count pruned nodes
             val = self.minimax(new_state, depth - 1, -float('inf'), float('inf'), False)
+            # Count raw nodes
+            self.minimax_raw(new_state, depth - 1, False)
+            
             if val > best_val:
                 best_val = val
                 best_action = action
-        
-        # Calculate speedup
-        # 5^depth is a rough estimate of nodes without pruning
-        self.nodes_without_pruning = 5**depth
         
         return best_action, self.nodes_without_pruning, self.nodes_with_pruning
 
@@ -69,6 +66,17 @@ class BossAgent:
                 if beta <= alpha:
                     break
             return min_eval
+
+    def minimax_raw(self, state, depth, is_maximizing):
+        self.nodes_without_pruning += 1
+        if depth == 0 or self.is_terminal(state):
+            return
+        
+        tank = state['boss'] if is_maximizing else state['player']
+        if not tank: return
+        
+        for action in self.get_actions(tank, state):
+            self.minimax_raw(self.apply_action(state, tank, action), depth - 1, not is_maximizing)
 
     def get_phase(self, hp):
         for p, data in BOSS_PHASES.items():

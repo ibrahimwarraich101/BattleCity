@@ -91,6 +91,8 @@ class Game:
                 self.player.respawn()
                 if self.level == 'B': # In Boss fight, reposition
                     self.player.x, self.player.y = BOSS_PLAYER_SPAWN
+        
+        self.player.update()
 
         # Update Enemy AI
         for enemy in self.enemies:

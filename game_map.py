@@ -1,3 +1,4 @@
+import pygame
 import random
 import collections
 from constants import *
@@ -138,13 +139,20 @@ class GameMap:
                 self.grid[16+dy][8+dx] = WATER
 
     def is_valid_map(self):
-        # BFS Reachability check from all spawns to Eagle
+        # BFS Reachability check from all spawns to Eagle area
+        ex, ey = EAGLE_POS
         for sx, sy in ENEMY_SPAWNS:
-            if not self._can_reach(sx, sy, EAGLE_POS[0], EAGLE_POS[1]):
+            # 1. Must be reachable eventually (blasting through bricks allowed)
+            # This ensures no Steel/Water blocking the path entirely.
+            if not self._can_reach(sx, sy, ex, ey, strict=False):
+                return False
+            # 2. Must have an OPEN path to the vicinity of the Eagle (Stage 1 & 2)
+            # This ensures Basic Tanks can at least get close to the base.
+            if not self._can_reach(sx, sy, ex, ey - 3, strict=True):
                 return False
         return True
 
-    def _can_reach(self, sx, sy, tx, ty):
+    def _can_reach(self, sx, sy, tx, ty, strict=False):
         queue = collections.deque([(sx, sy)])
         visited = set([(sx, sy)])
         while queue:
@@ -154,8 +162,11 @@ class GameMap:
             for dx, dy in [UP, DOWN, LEFT, RIGHT]:
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
-                    # Passable: Empty, Forest, Brick (since tanks can destroy brick to reach)
-                    if self.grid[ny][nx] in [EMPTY, FOREST, BRICK] and (nx, ny) not in visited:
+                    passable = [EMPTY, FOREST, EAGLE]
+                    if not strict:
+                        passable.append(BRICK)
+                    
+                    if (self.grid[ny][nx] in passable) and (nx, ny) not in visited:
                         visited.add((nx, ny))
                         queue.append((nx, ny))
         return False

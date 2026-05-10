@@ -34,14 +34,7 @@ def decide(tank, game_state):
         tank.path = run_bfs(current_pos, eagle_pos, grid)
         tank.ticks_since_path = 0
 
-    # 2. WALL AHEAD RULE: If next tile is Brick, shoot it
-    if tank.path:
-        next_step = tank.path[0]
-        if grid[next_step[1]][next_step[0]] == 1: # Brick
-            direction = (next_step[0] - tank.x, next_step[1] - tank.y)
-            return ('shoot', get_dir_name(direction))
-
-    # 3. MOVE RULE: Follow BFS path
+    # 2. MOVE RULE: Follow BFS path
     if tank.path:
         next_step = tank.path.pop(0)
         direction = (next_step[0] - tank.x, next_step[1] - tank.y)
