@@ -135,6 +135,7 @@ class BossAgent:
         
         # 1. Manhattan Distance
         dist = abs(boss.x - player.x) + abs(boss.y - player.y)
+        score -= dist * 2 # Continuous pressure to reduce distance
         if dist <= 3:
             score += 60
         

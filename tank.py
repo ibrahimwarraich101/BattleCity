@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 from constants import *
 from bullet import Bullet
 import agents.basic_tank_agent as basic_agent
@@ -21,8 +22,8 @@ class Tank:
         self.respawn_timer = 0
         
         # Stats (Default: Player)
-        self.speed_stat = 2 
-        self.fire_rate_stat = 30 # Default 1s
+        self.speed_stat = PLAYER_SPEED
+        self.fire_rate_stat = 60 # Player fires every 2s now
         
         # Agent state
         self.path = []
@@ -138,26 +139,26 @@ class EnemyTank(Tank):
             super().__init__(x, y, DOWN, COLOR_ENEMY_BASIC)
             self.agent = basic_agent
             self.hp = 1
-            self.speed_stat = 4
-            self.fire_rate_stat = 90 # 3 seconds
+            self.speed_stat = 8 # Very slow movement
+            self.fire_rate_stat = 180 # 6 seconds
         elif tank_type == 'fast':
             super().__init__(x, y, DOWN, COLOR_ENEMY_FAST)
             self.agent = fast_agent
             self.hp = 1
-            self.speed_stat = 2
-            self.fire_rate_stat = 45 # 1.5 seconds
+            self.speed_stat = 4
+            self.fire_rate_stat = 120 # 4 seconds
         elif tank_type == 'armor':
             super().__init__(x, y, DOWN, COLOR_ENEMY_ARMOR)
             self.agent = armor_agent
             self.hp = 4 # Needs 3 hits to retreat (4 total to die)
-            self.speed_stat = 3
-            self.fire_rate_stat = 60 # 2 seconds
+            self.speed_stat = 6
+            self.fire_rate_stat = 150 # 5 seconds
         elif tank_type == 'power':
             super().__init__(x, y, DOWN, (200, 100, 0))
             self.agent = armor_agent # Uses Armor AI
             self.hp = 4
-            self.speed_stat = 2 # Slightly increased speed (1/2)
-            self.fire_rate_stat = 60
+            self.speed_stat = 4 # Reduced speed
+            self.fire_rate_stat = 120 # Reduced fire rate
         elif tank_type == 'boss':
             super().__init__(x, y, DOWN, COLOR_BOSS_P1)
             # HP and Agent handled in BossTank subclass

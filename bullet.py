@@ -9,8 +9,11 @@ class Bullet:
         self.owner = owner # Reference to the tank that fired it
         self.active = True
 
-    def update(self, game_map, tanks, bullets):
-        # Advance 2 tiles per tick as per requirements
+    def update(self, game_map, tanks, bullets, frame_count):
+        # Move only every 2 ticks for extreme slow motion
+        if frame_count % 2 != 0:
+            return
+
         for _ in range(BULLET_SPEED):
             dx, dy = self.direction
             self.x += dx

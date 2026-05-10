@@ -3,7 +3,7 @@ import sys
 import random
 from constants import *
 from game_map import GameMap
-from tank import PlayerTank, EnemyTank
+from tank import PlayerTank, EnemyTank, BossTank
 from hud import HUD
 
 class Game:
@@ -102,7 +102,7 @@ class Game:
         # Update Bullets
         for bullet in self.bullets[:]:
             if bullet.active:
-                bullet.update(self.game_map, self.enemies + [self.player], self.bullets)
+                bullet.update(self.game_map, self.enemies + [self.player], self.bullets, self.frame_count)
             else:
                 self.bullets.remove(bullet)
 

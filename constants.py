@@ -57,8 +57,8 @@ MAX_WALL_DENSITY = 0.40  # 40%
 TOTAL_TILES = GRID_SIZE * GRID_SIZE
 
 # Tank Stats
-PLAYER_SPEED = 1 # 1 tile per 2 ticks (we will handle this in movement logic)
-BULLET_SPEED = 2 # 2 tiles per tick
+PLAYER_SPEED = 8 # Matches basic tank (Very slow)
+BULLET_SPEED = 1 
 PLAYER_LIVES = 10
 TOTAL_ENEMIES_PER_LEVEL = 20
 MAX_ACTIVE_ENEMIES = 3
@@ -70,7 +70,7 @@ BOSS_PLAYER_SPAWN = (8, 17)
 
 # Boss Phases
 BOSS_PHASES = {
-    1: {'hp': (7, 10), 'speed': 4, 'fire_rate': 60, 'depth': 2},
-    2: {'hp': (3, 6), 'speed': 3, 'fire_rate': 45, 'depth': 3},
-    3: {'hp': (1, 2), 'speed': 2, 'fire_rate': 24, 'depth': 4}
+    1: {'hp': (7, 10), 'speed': 6, 'fire_rate': 150, 'depth': 2},
+    2: {'hp': (3, 6), 'speed': 5, 'fire_rate': 120, 'depth': 3},
+    3: {'hp': (1, 2), 'speed': 4, 'fire_rate': 90, 'depth': 4}
 }
