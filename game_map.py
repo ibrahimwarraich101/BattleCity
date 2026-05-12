@@ -107,6 +107,34 @@ class GameMap:
             if not found:
                 return False
         return True
+    def _generate_boss_level(self):
+        # 12x12 arena in center (7..18)
+        # Surround everything else with Steel
+        for y in range(GRID_SIZE):
+            for x in range(GRID_SIZE):
+                if 7 <= x <= 18 and 7 <= y <= 18:
+                    self.grid[y][x] = EMPTY
+                else:
+                    self.grid[y][x] = STEEL
+        
+        # Scattered bricks
+        for _ in range(30):
+            rx, ry = random.randint(8, 17), random.randint(8, 17)
+            if (rx, ry) != BOSS_SPAWN and (rx, ry) != BOSS_PLAYER_SPAWN:
+                self.grid[ry][rx] = BRICK
+        
+        # Steel pillar clusters (2x2)
+        pillars = [(9,9), (15,15), (9,15), (15,9)]
+        for px, py in pillars:
+            for dx in range(2):
+                for dy in range(2):
+                    self.grid[py+dy][px+dx] = STEEL
+        
+        # Water patch (2x3)
+        for dx in range(3):
+            for dy in range(2):
+                self.grid[16+dy][8+dx] = WATER
+                self.grid[9+dy][14+dx] = WATER
 
     def get_tile(self, x, y):
         if 0 <= x < GRID_SIZE and 0 <= y < GRID_SIZE:

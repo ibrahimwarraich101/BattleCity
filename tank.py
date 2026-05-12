@@ -134,17 +134,18 @@ class PlayerTank(Tank):
 
 class EnemyTank(Tank):
     def __init__(self, x, y, tank_type='basic'):
+        self.tank_type = tank_type
         if tank_type == 'basic':
             super().__init__(x, y, DOWN, COLOR_ENEMY_BASIC)
             self.agent = basic_agent
             self.hp = 1
-            self.speed_stat = 12 # Slow
+            self.speed_stat = 12
             self.fire_rate_stat = 180
         elif tank_type == 'fast':
             super().__init__(x, y, DOWN, COLOR_ENEMY_FAST)
             self.agent = fast_agent
             self.hp = 1
-            self.speed_stat = 6 # Fast
+            self.speed_stat = 6
             self.fire_rate_stat = 120
         elif tank_type == 'armor':
             super().__init__(x, y, DOWN, COLOR_ENEMY_ARMOR)
@@ -158,8 +159,9 @@ class EnemyTank(Tank):
             self.hp = 4
             self.speed_stat = 8
             self.fire_rate_stat = 90
-        
-        self.tank_type = tank_type
+        elif tank_type == 'boss':
+            super().__init__(x, y, DOWN, COLOR_BOSS_P1)
+            # HP and Agent are specialized in BossTank subclass
 
     def update_ai(self, game_map, tanks, bullets, player):
         self.update()
