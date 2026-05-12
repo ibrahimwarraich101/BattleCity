@@ -14,7 +14,7 @@ class Tank:
         self.direction = direction
         self.color = color
         self.hp = 1
-        self.hp_lost = 0 # To track damage for agents
+        self.hp_lost = 0
         self.active = True
         self.move_cooldown = 0
         self.shoot_cooldown = 0
@@ -23,17 +23,18 @@ class Tank:
         
         # Stats (Default: Player)
         self.speed_stat = PLAYER_SPEED
-        self.fire_rate_stat = 60 # Player fires every 2s now
+        self.fire_rate_stat = 30 # 0.5s at 60 FPS
         
-        # Agent state
         self.path = []
         self.ticks_since_path = 0
         self.flash_timer = 0
+        self.stuck_timer = 0
     
     def update(self):
         if self.move_cooldown > 0: self.move_cooldown -= 1
         if self.shoot_cooldown > 0: self.shoot_cooldown -= 1
         if self.flash_timer > 0: self.flash_timer -= 1
+        self.ticks_since_path += 1
 
     def move(self, direction, game_map, other_tanks):
         if isinstance(direction, str):
@@ -63,12 +64,16 @@ class Tank:
         self.x = nx
         self.y = ny
         self.move_cooldown = self.speed_stat
+        self.stuck_timer = 0
         return True
 
     def shoot(self, bullets, direction=None):
         if direction:
             mapping = {'up': UP, 'down': DOWN, 'left': LEFT, 'right': RIGHT}
-            self.direction = mapping.get(direction, self.direction)
+            if isinstance(direction, str):
+                self.direction = mapping.get(direction, self.direction)
+            else:
+                self.direction = direction
 
         if self.shoot_cooldown > 0:
             return False
@@ -85,7 +90,7 @@ class Tank:
     def take_damage(self):
         self.hp -= 1
         self.hp_lost += 1
-        self.flash_timer = 10
+        self.flash_timer = 15
         if self.hp <= 0:
             self.active = False
 
@@ -94,36 +99,30 @@ class Tank:
         
         color = self.color
         if self.flash_timer > 0:
-            if self.flash_timer % 2 == 0:
-                color = (255, 255, 255) # White flash
+            if (self.flash_timer // 2) % 2 == 0:
+                color = (255, 255, 255)
 
-        rect = pygame.Rect(self.x * TILE_SIZE, self.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-        pygame.draw.rect(screen, color, rect)
+        rect = pygame.Rect(self.x * TILE_SIZE + 2, self.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+        # Rounded tank body
+        pygame.draw.rect(screen, color, rect, border_radius=4)
         
-        center = (self.x * TILE_SIZE + TILE_SIZE // 2, self.y * TILE_SIZE + TILE_SIZE // 2)
-        size = 8
-        if self.direction == UP:
-            pts = [(center[0], center[1]-size), (center[0]-size, center[1]), (center[0]+size, center[1])]
-        elif self.direction == DOWN:
-            pts = [(center[0], center[1]+size), (center[0]-size, center[1]), (center[0]+size, center[1])]
-        elif self.direction == LEFT:
-            pts = [(center[0]-size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
-        elif self.direction == RIGHT:
-            pts = [(center[0]+size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
-        
-        pygame.draw.polygon(screen, (0, 0, 0), pts)
+        # Barrel
+        bx = self.x * TILE_SIZE + TILE_SIZE // 2 + self.direction[0] * (TILE_SIZE // 2 - 2)
+        by = self.y * TILE_SIZE + TILE_SIZE // 2 + self.direction[1] * (TILE_SIZE // 2 - 2)
+        pygame.draw.line(screen, (0, 0, 0), (self.x * TILE_SIZE + TILE_SIZE // 2, self.y * TILE_SIZE + TILE_SIZE // 2), (bx, by), 4)
 
 class PlayerTank(Tank):
     def __init__(self, x, y):
         super().__init__(x, y, UP, COLOR_PLAYER)
         self.lives = PLAYER_LIVES
+        self.fire_rate_stat = 20 # Player fires faster
 
     def take_damage(self):
         super().take_damage()
         if not self.active:
             self.lives -= 1
             if self.lives > 0:
-                self.respawn_timer = int(1.5 * FPS)
+                self.respawn_timer = 90 # 1.5s at 60 FPS
 
     def respawn(self):
         self.x, self.y = PLAYER_SPAWN
@@ -139,37 +138,32 @@ class EnemyTank(Tank):
             super().__init__(x, y, DOWN, COLOR_ENEMY_BASIC)
             self.agent = basic_agent
             self.hp = 1
-            self.speed_stat = 8 # Very slow movement
-            self.fire_rate_stat = 180 # 6 seconds
+            self.speed_stat = 12 # Slow
+            self.fire_rate_stat = 180
         elif tank_type == 'fast':
             super().__init__(x, y, DOWN, COLOR_ENEMY_FAST)
             self.agent = fast_agent
             self.hp = 1
-            self.speed_stat = 4
-            self.fire_rate_stat = 120 # 4 seconds
+            self.speed_stat = 6 # Fast
+            self.fire_rate_stat = 120
         elif tank_type == 'armor':
             super().__init__(x, y, DOWN, COLOR_ENEMY_ARMOR)
             self.agent = armor_agent
-            self.hp = 4 # Needs 3 hits to retreat (4 total to die)
-            self.speed_stat = 6
-            self.fire_rate_stat = 150 # 5 seconds
-        elif tank_type == 'power':
-            super().__init__(x, y, DOWN, (200, 100, 0))
-            self.agent = armor_agent # Uses Armor AI
             self.hp = 4
-            self.speed_stat = 4 # Reduced speed
-            self.fire_rate_stat = 120 # Reduced fire rate
-        elif tank_type == 'boss':
-            super().__init__(x, y, DOWN, COLOR_BOSS_P1)
-            # HP and Agent handled in BossTank subclass
+            self.speed_stat = 10
+            self.fire_rate_stat = 150
+        elif tank_type == 'power':
+            super().__init__(x, y, DOWN, (200, 100, 255))
+            self.agent = armor_agent
+            self.hp = 4
+            self.speed_stat = 8
+            self.fire_rate_stat = 90
         
         self.tank_type = tank_type
 
     def update_ai(self, game_map, tanks, bullets, player):
-        self.ticks_since_path += 1
-        self.update() # Handle cooldowns
+        self.update()
         
-        # Prepare game state for agent
         game_state = {
             'grid': game_map.grid,
             'player_pos': (player.x, player.y) if player.active else None,
@@ -180,21 +174,41 @@ class EnemyTank(Tank):
             'boss': self
         }
         
+        # Call agent
         if self.tank_type == 'boss':
-            action, n_raw, n_pruned = self.agent.decide(self, game_state)
+            result = self.agent.decide(self, game_state)
+            action, n_raw, n_pruned = result
             self.last_stats = (n_raw, n_pruned)
-            action_type, action_value = action
         else:
-            action_type, action_value = self.agent.decide(self, game_state)
+            action = self.agent.decide(self, game_state)
         
-        if action_type == 'move':
-            self.move(action_value, game_map, tanks)
-        elif action_type == 'shoot':
-            self.shoot(bullets, action_value)
+        atype, aval = action
         
-        # Handle Power Tank speed
-        if self.tank_type == 'power' and self.move_cooldown > 0:
-            self.move_cooldown = 1
+        if atype == 'move':
+            if self.move_cooldown == 0:
+                if not self.move(aval, game_map, tanks):
+                    self.stuck_timer += 1
+                else:
+                    # Successfully moved, update path
+                    if self.path:
+                        if (self.x, self.y) == self.path[0]:
+                            self.path.pop(0)
+            else:
+                self.stuck_timer += 1
+        elif atype == 'shoot':
+            self.shoot(bullets, aval)
+        elif atype == 'stay':
+            pass
+
+        # Stuck detection
+        if self.stuck_timer > 60: # 1 second stuck
+            dirs = ['up', 'down', 'left', 'right']
+            random.shuffle(dirs)
+            for d in dirs:
+                if self.move(d, game_map, tanks):
+                    self.stuck_timer = 0
+                    self.path = [] # Force re-path
+                    break
 
 class BossTank(EnemyTank):
     def __init__(self, x, y):
@@ -207,13 +221,12 @@ class BossTank(EnemyTank):
         self.phase = 1
 
     def update_ai(self, game_map, tanks, bullets, player):
-        # HP-based Phase System
+        # Update Phase
         for p, data in BOSS_PHASES.items():
             if data['hp'][0] <= self.hp <= data['hp'][1]:
                 self.phase = p
                 break
         
-        # Update Stats/Visuals based on Phase
         phase_data = BOSS_PHASES[self.phase]
         self.speed_stat = phase_data['speed']
         self.fire_rate_stat = phase_data['fire_rate']
@@ -222,50 +235,36 @@ class BossTank(EnemyTank):
         elif self.phase == 2: self.color = COLOR_BOSS_P2
         elif self.phase == 3: self.color = COLOR_BOSS_P3
         
-        # Decision and movement
         super().update_ai(game_map, tanks, bullets, player)
 
     def draw(self, screen):
         if not self.active: return
         
-        # Phase Visual Effects
         offset_x, offset_y = 0, 0
         draw_color = self.color
         
         if self.phase == 2:
-            # Pulsing glow
             pulse = (math.sin(pygame.time.get_ticks() * 0.01) + 1) / 2
-            draw_color = (
-                int(self.color[0] * (0.7 + 0.3 * pulse)),
-                int(self.color[1] * (0.7 + 0.3 * pulse)),
-                int(self.color[2] * (0.7 + 0.3 * pulse))
-            )
+            draw_color = [int(c * (0.8 + 0.2 * pulse)) for c in self.color]
         elif self.phase == 3:
-            # Screen shake / offset
-            if pygame.time.get_ticks() % 5 == 0:
-                offset_x = random.randint(-2, 2)
-                offset_y = random.randint(-2, 2)
+            if pygame.time.get_ticks() % 4 == 0:
+                offset_x = random.randint(-3, 3)
+                offset_y = random.randint(-3, 3)
         
         # HP Bar
-        bar_width = TILE_SIZE
-        bar_height = 4
-        pygame.draw.rect(screen, (0,0,0), (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 6 + offset_y, bar_width, bar_height))
-        fill_width = int(bar_width * (self.hp / BOSS_HP_MAX))
-        pygame.draw.rect(screen, COLOR_HP_BAR, (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 6 + offset_y, fill_width, bar_height))
+        pygame.draw.rect(screen, (40, 40, 40), (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 10 + offset_y, TILE_SIZE, 5))
+        fill = int(TILE_SIZE * (self.hp / BOSS_HP_MAX))
+        pygame.draw.rect(screen, COLOR_HP_BAR, (self.x*TILE_SIZE + offset_x, self.y*TILE_SIZE - 10 + offset_y, fill, 5))
 
-        # Flash effect
-        if self.flash_timer > 0:
-            if self.flash_timer % 2 == 0:
-                draw_color = (255, 255, 255)
+        if self.flash_timer > 0 and (self.flash_timer // 2) % 2 == 0:
+            draw_color = (255, 255, 255)
 
         rect = pygame.Rect(self.x * TILE_SIZE + offset_x, self.y * TILE_SIZE + offset_y, TILE_SIZE, TILE_SIZE)
-        pygame.draw.rect(screen, draw_color, rect)
+        pygame.draw.rect(screen, draw_color, rect, border_radius=6)
         
-        # Direction indicator
-        center = (self.x * TILE_SIZE + TILE_SIZE // 2 + offset_x, self.y * TILE_SIZE + TILE_SIZE // 2 + offset_y)
-        size = 8
-        if self.direction == UP: pts = [(center[0], center[1]-size), (center[0]-size, center[1]), (center[0]+size, center[1])]
-        elif self.direction == DOWN: pts = [(center[0], center[1]+size), (center[0]-size, center[1]), (center[0]+size, center[1])]
-        elif self.direction == LEFT: pts = [(center[0]-size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
-        elif self.direction == RIGHT: pts = [(center[0]+size, center[1]), (center[0], center[1]-size), (center[0], center[1]+size)]
-        pygame.draw.polygon(screen, (0, 0, 0), pts)
+        # Boss Details
+        pygame.draw.rect(screen, (0,0,0), rect, 2, border_radius=6)
+        center = rect.center
+        bx = center[0] + self.direction[0] * (TILE_SIZE // 2 - 2)
+        by = center[1] + self.direction[1] * (TILE_SIZE // 2 - 2)
+        pygame.draw.line(screen, (0,0,0), center, (bx, by), 6)

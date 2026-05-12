@@ -1,37 +1,38 @@
 import pygame
 
 # Screen Dimensions
-TILE_SIZE = 24
+TILE_SIZE = 26 # Slightly larger
 GRID_SIZE = 26
 GAME_AREA_WIDTH = GRID_SIZE * TILE_SIZE
-HUD_WIDTH = 120
+HUD_WIDTH = 180 # Wider HUD for better info display
 SCREEN_WIDTH = GAME_AREA_WIDTH + HUD_WIDTH
 SCREEN_HEIGHT = GRID_SIZE * TILE_SIZE
-FPS = 30
-MENU_FONT_SIZE = 48
-STATS_FONT_SIZE = 14
-STAGE_SPLASH_TIME = 60 # 2 seconds
+FPS = 60 # Smoother frame rate
+TICK_RATE_MS = 100 # Game logic tick rate
+STAGE_SPLASH_TIME = 120 # 2 seconds at 60 FPS
 
-# Colors
-COLOR_EMPTY = (26, 26, 26)      # #1a1a1a
-COLOR_BRICK = (139, 37, 0)      # #8B2500
-COLOR_STEEL = (170, 170, 170)    # #AAAAAA
-COLOR_WATER = (26, 107, 160)     # #1a6ba0
-COLOR_FOREST = (45, 90, 27)      # #2d5a1b
-COLOR_EAGLE = (255, 215, 0)      # Yellow/Gold
-COLOR_HUD = (50, 50, 50)
-COLOR_TEXT = (255, 255, 255)
+# Colors - Premium Palette
+COLOR_BG = (15, 15, 20)          # Dark navy background
+COLOR_EMPTY = (20, 20, 25)       # Slightly lighter dark for empty tiles
+COLOR_BRICK = (180, 60, 40)      # Vibrant brick red
+COLOR_STEEL = (110, 120, 140)    # Cool steel blue-grey
+COLOR_WATER = (30, 100, 200)     # Deep blue water
+COLOR_FOREST = (40, 150, 60)     # Lush green forest
+COLOR_EAGLE = (255, 200, 0)      # Golden eagle
+COLOR_EAGLE_DEAD = (100, 100, 100)
+COLOR_HUD = (30, 30, 40)         # Darker HUD
+COLOR_UI_TEXT = (220, 220, 240)  # Off-white text
+COLOR_BULLET = (255, 255, 100)   # Glowing yellow bullet
 
 # Tank Colors
-COLOR_PLAYER = (0, 255, 0)
-COLOR_ENEMY_BASIC = (150, 150, 150)
-COLOR_ENEMY_FAST = (255, 255, 255)
-COLOR_ENEMY_ARMOR = (139, 0, 0)
-COLOR_BOSS_P1 = (255, 215, 0) # Gold
-COLOR_BOSS_P2 = (255, 140, 0) # Orange
-COLOR_BOSS_P3 = (255, 0, 0)   # Red
-COLOR_HP_BAR = (200, 0, 0)
-COLOR_ENEMY_BOSS = (255, 215, 0)
+COLOR_PLAYER = (50, 200, 255)    # Neon Cyan
+COLOR_ENEMY_BASIC = (180, 180, 180)
+COLOR_ENEMY_FAST = (255, 100, 100) # Bright Red
+COLOR_ENEMY_ARMOR = (150, 50, 200) # Purple
+COLOR_BOSS_P1 = (255, 215, 0)    # Gold
+COLOR_BOSS_P2 = (255, 100, 0)    # Orange
+COLOR_BOSS_P3 = (255, 0, 50)     # Vibrant Red
+COLOR_HP_BAR = (0, 255, 100)     # Green HP bar
 
 # Tile Types
 EMPTY = 0
@@ -53,24 +54,24 @@ EAGLE_POS = (12, 24)
 ENEMY_SPAWNS = [(0, 0), (12, 0), (24, 0)]
 
 # Difficulty / Level Settings
-MAX_WALL_DENSITY = 0.40  # 40%
+MAX_WALL_DENSITY = 0.35  # 35% for better playability
 TOTAL_TILES = GRID_SIZE * GRID_SIZE
 
-# Tank Stats
-PLAYER_SPEED = 8 # Matches basic tank (Very slow)
-BULLET_SPEED = 1 
-PLAYER_LIVES = 10
+# Tank Stats (Base delays in frames at 60 FPS)
+PLAYER_SPEED = 6 
+BULLET_SPEED = 1 # 1 tile per update
+PLAYER_LIVES = 3
 TOTAL_ENEMIES_PER_LEVEL = 20
-MAX_ACTIVE_ENEMIES = 3
+MAX_ACTIVE_ENEMIES = 4
 
 # Boss Stats
-BOSS_HP_MAX = 10
+BOSS_HP_MAX = 12
 BOSS_SPAWN = (17, 8)
 BOSS_PLAYER_SPAWN = (8, 17)
 
 # Boss Phases
 BOSS_PHASES = {
-    1: {'hp': (7, 10), 'speed': 6, 'fire_rate': 150, 'depth': 2},
-    2: {'hp': (3, 6), 'speed': 5, 'fire_rate': 120, 'depth': 3},
-    3: {'hp': (1, 2), 'speed': 4, 'fire_rate': 90, 'depth': 4}
+    1: {'hp': (9, 12), 'speed': 8, 'fire_rate': 120, 'depth': 2},
+    2: {'hp': (4, 8), 'speed': 6, 'fire_rate': 90, 'depth': 3},
+    3: {'hp': (1, 3), 'speed': 4, 'fire_rate': 60, 'depth': 4}
 }

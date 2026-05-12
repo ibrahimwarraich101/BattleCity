@@ -1,17 +1,18 @@
 import random
 
-# TANK TYPE 2: Fast Tank
-# AI Model: Goal-Based Agent (Ignores player)
-# Search Algorithm: Greedy Best-First (1-step)
-
 def decide(tank, game_state):
     grid = game_state['grid']
     eagle_pos = game_state['eagle_pos']
     GRID_SIZE = len(grid)
     
-    # h(n) = Manhattan distance to Eagle
     def h(pos):
         return abs(pos[0] - eagle_pos[0]) + abs(pos[1] - eagle_pos[1])
+
+    def is_tank_at(pos):
+        for other in game_state['tanks']:
+            if other != tank and other.active and (other.x, other.y) == pos:
+                return True
+        return False
 
     neighbors = [
         ('up', (tank.x, tank.y - 1)),
@@ -20,44 +21,27 @@ def decide(tank, game_state):
         ('right', (tank.x + 1, tank.y))
     ]
 
-    # Filter valid neighbors (within grid)
-    valid_neighbors = []
-    for d, pos in neighbors:
-        if 0 <= pos[0] < GRID_SIZE and 0 <= pos[1] < GRID_SIZE:
-            valid_neighbors.append((d, pos))
+    valid_neighbors = [(d, pos) for d, pos in neighbors if 0 <= pos[0] < GRID_SIZE and 0 <= pos[1] < GRID_SIZE]
 
-    # 1. WALL AHEAD RULE: If greedy-best neighbor is Brick, shoot it
-    # Find the neighbor with the lowest h(n) regardless of block (except Steel/Water)
-    greedy_choice = None
-    min_dist = float('inf')
+    # Fast tanks prioritize movement over shooting but will shoot bricks
+    passable = []
     for d, pos in valid_neighbors:
         tile = grid[pos[1]][pos[0]]
-        if tile not in [2, 3]: # Steel and Water are impassable
-            dist = h(pos)
-            if dist < min_dist:
-                min_dist = dist
-                greedy_choice = (d, pos)
+        if tile not in [2, 3] and not is_tank_at(pos):
+            passable.append((d, pos))
 
-    if greedy_choice:
-        d, pos = greedy_choice
-        if grid[pos[1]][pos[0]] == 1: # Brick
-            return ('shoot', d)
+    if passable:
+        # Find best direction based on heuristic
+        best_d, best_pos = min(passable, key=lambda x: h(x[1]))
         
-        # 2. MOVE RULE: If passable, move there
-        # Check if tile is occupied by another tank
-        tank_blocking = False
-        for other in game_state['tanks']:
-            if other != tank and other.active and (other.x, other.y) == pos:
-                tank_blocking = True
-                break
-        
-        if not tank_blocking:
-            return ('move', d)
+        # If brick is in the way, shoot it
+        if grid[best_pos[1]][best_pos[0]] == 1:
+            return ('shoot', best_d)
+        return ('move', best_d)
 
-    # 3. LOCAL MINIMA: If all 4 neighbors are blocked
-    # Pick a random non-Steel, non-Water direction and shoot
-    possible_shoot = [d for d, pos in valid_neighbors if grid[pos[1]][pos[0]] not in [2, 3]]
-    if possible_shoot:
-        return ('shoot', random.choice(possible_shoot))
+    # If stuck, try to shoot bricks or move randomly
+    possible_bricks = [d for d, pos in valid_neighbors if grid[pos[1]][pos[0]] == 1]
+    if possible_bricks:
+        return ('shoot', random.choice(possible_bricks))
     
-    return ('stay', None)
+    return ('move', random.choice(['up', 'down', 'left', 'right']))

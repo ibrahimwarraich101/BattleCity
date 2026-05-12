@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import math
 from constants import *
 from game_map import GameMap
 from tank import PlayerTank, EnemyTank, BossTank
@@ -191,16 +192,18 @@ class Game:
                         elif event.key == pygame.K_b: self.start_splash('B')
                     elif event.key == pygame.K_d:
                         self.toggle_debug()
-                    elif self.game_state == "STAGE_CLEAR":
-                        if self.level == 1: self.start_splash(2)
-                        elif self.level == 2: self.start_splash('B')
-                    elif self.game_state in ["GAME_OVER", "VICTORY"]:
-                        self.game_state = "MENU"
+                    elif self.game_state in ["STAGE_CLEAR", "GAME_OVER", "VICTORY"]:
+                        if self.game_state == "STAGE_CLEAR":
+                            if self.level == 1: self.start_splash(2)
+                            elif self.level == 2: self.start_splash('B')
+                            else: self.game_state = "MENU"
+                        else:
+                            self.game_state = "MENU"
 
             self.handle_input()
             self.update()
             
-            self.screen.fill((0, 0, 0))
+            self.screen.fill(COLOR_BG)
             
             if self.game_state == "MENU":
                 self.draw_menu()
@@ -208,7 +211,11 @@ class Game:
                 self.draw_splash()
             else:
                 self.game_map.draw(self.screen, self.frame_count)
-                self.player.draw(self.screen)
+                
+                # Draw Player (only if active)
+                if self.player.active:
+                    self.player.draw(self.screen)
+                
                 boss_stats = (0, 0)
                 for enemy in self.enemies:
                     enemy.draw(self.screen)
@@ -220,6 +227,7 @@ class Game:
                 for bullet in self.bullets:
                     bullet.draw(self.screen)
 
+                # Forest Layer (Top)
                 for y in range(GRID_SIZE):
                     for x in range(GRID_SIZE):
                         if self.game_map.grid[y][x] == FOREST:
@@ -236,25 +244,56 @@ class Game:
             self.frame_count += 1
 
     def draw_menu(self):
-        font = pygame.font.SysFont('Arial', 64, bold=True)
-        title = font.render("BATTLE CITY", True, (255, 255, 255))
-        rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
-        self.screen.blit(title, rect)
+        # Premium Menu with pulse animation
+        time = pygame.time.get_ticks()
+        pulse = (math.sin(time * 0.005) + 1) / 2
         
-        font = pygame.font.SysFont('Arial', 24)
-        prompt = font.render("Press ENTER to Start", True, (200, 200, 200))
-        rect = prompt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        self.screen.blit(prompt, rect)
+        # Title with glow
+        font = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 80, bold=True)
+        title_surf = font.render("BATTLE CITY", True, (255, 255, 0))
+        glow_surf = font.render("BATTLE CITY", True, (100, 100, 0))
+        rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
         
-        hint = font.render("Press 1, 2, or B to select level", True, (150, 150, 150))
-        rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100))
-        self.screen.blit(hint, rect)
+        # Draw glow
+        for dx, dy in [(-2,0),(2,0),(0,-2),(0,2)]:
+            self.screen.blit(glow_surf, rect.move(dx, dy))
+        self.screen.blit(title_surf, rect)
+        
+        # Subtitle
+        font_sub = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 32)
+        subtitle = font_sub.render("AI ADAPTIVE COMBAT", True, (200, 200, 220))
+        self.screen.blit(subtitle, subtitle.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + 70)))
+        
+        # Prompt
+        font_prompt = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 24)
+        alpha = int(150 + 105 * pulse)
+        prompt_color = (alpha, alpha, alpha)
+        prompt = font_prompt.render("PRESS ENTER TO START", True, prompt_color)
+        self.screen.blit(prompt, prompt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)))
+        
+        # Options
+        options = [
+            "Press 1: Stage 1",
+            "Press 2: Stage 2",
+            "Press B: Boss Fight"
+        ]
+        for i, opt in enumerate(options):
+            opt_surf = font_prompt.render(opt, True, (150, 150, 180))
+            self.screen.blit(opt_surf, opt_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 120 + i * 35)))
 
     def draw_splash(self):
-        font = pygame.font.SysFont('Arial', 48, bold=True)
-        text = f"STAGE {self.level}" if self.level != 'B' else "BOSS LEVEL"
+        self.screen.fill(COLOR_BG)
+        font = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 64, bold=True)
+        text = f"STAGE {self.level}" if self.level != 'B' else "ULTIMATE BOSS"
         surf = font.render(text, True, (255, 255, 255))
         rect = surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        
+        # Progress Bar for splash
+        bar_w = 300
+        progress = (STAGE_SPLASH_TIME - self.splash_timer) / STAGE_SPLASH_TIME
+        pygame.draw.rect(self.screen, (40, 40, 60), (SCREEN_WIDTH//2 - bar_w//2, SCREEN_HEIGHT//2 + 60, bar_w, 10), border_radius=5)
+        pygame.draw.rect(self.screen, COLOR_PLAYER, (SCREEN_WIDTH//2 - bar_w//2, SCREEN_HEIGHT//2 + 60, int(bar_w * progress), 10), border_radius=5)
+        
         self.screen.blit(surf, rect)
 
     def draw_debug(self):

@@ -11,165 +11,102 @@ class GameMap:
 
     def generate_map(self, level):
         while True:
-            pygame.event.pump() # Keep window responsive
+            pygame.event.pump()
             self.grid = [[EMPTY for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
             
             # Place Eagle
             ex, ey = EAGLE_POS
             self.grid[ey][ex] = EAGLE
-
-            # Constraint 1: Base Safety
-            # Eagle tile (12,24) must be surrounded by at least 1 full ring of Brick (1) or Steel (2)
-            for dx in range(-1, 2):
-                for dy in range(-1, 2):
-                    if dx == 0 and dy == 0: continue
-                    nx, ny = ex + dx, ey + dy
-                    if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
-                        # Base ring is brick by default
-                        self.grid[ny][nx] = BRICK
             
-            # Level specific adjustments for Base Safety
-            if level == 1:
-                # 2 rings of brick
-                for dx in range(-2, 3):
-                    for dy in range(-2, 3):
-                        if abs(dx) <= 1 and abs(dy) <= 1: continue
-                        nx, ny = ex + dx, ey + dy
-                        if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
-                            self.grid[ny][nx] = BRICK
+            # Base Safety: Surround Eagle with Brick
+            base_ring = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0)]
+            for dx, dy in base_ring:
+                rx, ry = ex + dx, ey + dy
+                if 0 <= rx < GRID_SIZE and 0 <= ry < GRID_SIZE:
+                    if level == 1:
+                        self.grid[ry][rx] = BRICK
+                    else:
+                        self.grid[ry][rx] = random.choice([BRICK, BRICK, STEEL])
 
-            # Boss Level special layout
             if level == 'B':
                 self._generate_boss_level()
                 break
 
-            # Fill the rest using CSP-like approach (Randomized with constraints)
+            # Fill with CSP logic
             if self._fill_map_csp(level):
-                if self.is_valid_map():
-                    break
+                break
 
     def _fill_map_csp(self, level):
-        # We'll use a simplified CSP: iterate through tiles and pick from domain
-        # with density and fairness constraints.
-        
-        # Determine weights based on level
+        # Determine targets based on level
         if level == 1:
-            weights = {BRICK: 0.15, STEEL: 0.02, WATER: 0.03, FOREST: 0.05}
+            targets = {BRICK: 150, STEEL: 20, WATER: 15, FOREST: 40}
         elif level == 2:
-            weights = {BRICK: 0.12, STEEL: 0.08, WATER: 0.05, FOREST: 0.05}
+            targets = {BRICK: 120, STEEL: 50, WATER: 30, FOREST: 50}
         else:
-            weights = {BRICK: 0.10, STEEL: 0.10, WATER: 0.05, FOREST: 0.05}
+            targets = {BRICK: 80, STEEL: 30, WATER: 10, FOREST: 20}
 
-        tiles_to_fill = []
-        for y in range(GRID_SIZE):
-            for x in range(GRID_SIZE):
-                # Skip eagle and its protection ring
-                if self.grid[y][x] != EMPTY: continue
-                # Skip spawn zones (top row)
-                if y == 0 and (x == 0 or x == 12 or x == 24): continue
-                
-                # Proximity to spawns/eagle for Steel/Water prevention
-                is_near_critical = False
-                for sx, sy in ENEMY_SPAWNS + [EAGLE_POS]:
-                    if abs(x - sx) + abs(y - sy) <= 2:
-                        is_near_critical = True
-                        break
-                
-                # Fairness: No block within distance of player start (4,24)
-                if abs(x - PLAYER_SPAWN[0]) + abs(y - PLAYER_SPAWN[1]) < 8: continue
-                
-                tiles_to_fill.append((x, y, is_near_critical))
+        elements = []
+        for t, count in targets.items():
+            elements.extend([t] * count)
+        random.shuffle(elements)
 
-        random.shuffle(tiles_to_fill)
-        
-        wall_count = sum(row.count(BRICK) + row.count(STEEL) + row.count(WATER) for row in self.grid)
-        max_walls = int(TOTAL_TILES * MAX_WALL_DENSITY)
-
-        for info in tiles_to_fill:
-            x, y = info[0], info[1]
-            if wall_count >= max_walls:
-                break
-            
-            # Pick a tile type based on weights
-            r = random.random()
-            cumulative = 0
-            chosen = EMPTY
-            for t, w in weights.items():
-                cumulative += w
-                if r < cumulative:
-                    # If near spawn/eagle, don't place Steel(2) or Water(3)
-                    if info[2] and t in [STEEL, WATER]:
-                        chosen = BRICK # Downgrade to brick if near critical
-                    else:
-                        chosen = t
-                    break
-            
-            if chosen != EMPTY:
-                self.grid[y][x] = chosen
-                wall_count += 1
-        
-        return True
-
-    def _generate_boss_level(self):
-        # 12x12 arena in center (7..18)
-        # Surround everything else with Steel
-        for y in range(GRID_SIZE):
-            for x in range(GRID_SIZE):
-                if 7 <= x <= 18 and 7 <= y <= 18:
-                    self.grid[y][x] = EMPTY
-                else:
-                    self.grid[y][x] = STEEL
-        
-        # Scattered bricks
-        for _ in range(20):
-            rx, ry = random.randint(8, 17), random.randint(8, 17)
-            if (rx, ry) != BOSS_SPAWN and (rx, ry) != BOSS_PLAYER_SPAWN:
-                self.grid[ry][rx] = BRICK
-        
-        # Steel pillar clusters (2x2)
-        pillars = [(9,9), (15,15)]
-        for px, py in pillars:
-            for dx in range(2):
-                for dy in range(2):
-                    self.grid[py+dy][px+dx] = STEEL
-        
-        # Water patch (2x3) bottom-left of arena
-        for dx in range(3):
-            for dy in range(2):
-                self.grid[16+dy][8+dx] = WATER
-
-    def is_valid_map(self):
-        # BFS Reachability check from all spawns to Eagle area
-        ex, ey = EAGLE_POS
-        for sx, sy in ENEMY_SPAWNS:
-            # 1. Must be reachable eventually (blasting through bricks allowed)
-            # This ensures no Steel/Water blocking the path entirely.
-            if not self._can_reach(sx, sy, ex, ey, strict=False):
-                return False
-            # 2. Must have an OPEN path to the vicinity of the Eagle (Stage 1 & 2)
-            # This ensures Basic Tanks can at least get close to the base.
-            if not self._can_reach(sx, sy, ex, ey - 3, strict=True):
-                return False
-        return True
-
-    def _can_reach(self, sx, sy, tx, ty, strict=False):
-        queue = collections.deque([(sx, sy)])
-        visited = set([(sx, sy)])
-        while queue:
-            cx, cy = queue.popleft()
-            if cx == tx and cy == ty:
-                return True
+        # Protected zones
+        protected = set([EAGLE_POS, PLAYER_SPAWN] + ENEMY_SPAWNS)
+        # Base ring
+        for dx in range(-1, 2):
+            for dy in range(-1, 2):
+                protected.add((EAGLE_POS[0]+dx, EAGLE_POS[1]+dy))
+        # Immediate spawn neighbors
+        for sx, sy in ENEMY_SPAWNS + [PLAYER_SPAWN]:
             for dx, dy in [UP, DOWN, LEFT, RIGHT]:
-                nx, ny = cx + dx, cy + dy
-                if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
-                    passable = [EMPTY, FOREST, EAGLE]
-                    if not strict:
-                        passable.append(BRICK)
+                protected.add((sx+dx, sy+dy))
+
+        all_coords = [(x, y) for x in range(GRID_SIZE) for y in range(GRID_SIZE)]
+        random.shuffle(all_coords)
+
+        for tile_type in elements:
+            placed = False
+            for i in range(len(all_coords)):
+                x, y = all_coords[i]
+                if self.grid[y][x] == EMPTY and (x, y) not in protected:
+                    # Temporary place
+                    self.grid[y][x] = tile_type
                     
-                    if (self.grid[ny][nx] in passable) and (nx, ny) not in visited:
-                        visited.add((nx, ny))
-                        queue.append((nx, ny))
-        return False
+                    # Check reachability (Strict BFS: no walls)
+                    if tile_type in [BRICK, STEEL, WATER]:
+                        if self.is_reachable(ENEMY_SPAWNS, EAGLE_POS):
+                            placed = True
+                            all_coords.pop(i)
+                            break
+                        else:
+                            # Backtrack
+                            self.grid[y][x] = EMPTY
+                    else:
+                        placed = True
+                        all_coords.pop(i)
+                        break
+        return True
+
+    def is_reachable(self, start_points, target):
+        for sx, sy in start_points:
+            visited = set([(sx, sy)])
+            queue = collections.deque([(sx, sy)])
+            found = False
+            while queue:
+                cx, cy = queue.popleft()
+                if (cx, cy) == target:
+                    found = True
+                    break
+                for dx, dy in [UP, DOWN, LEFT, RIGHT]:
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE:
+                        # Passable tiles for reachability: EMPTY, FOREST, EAGLE
+                        if self.grid[ny][nx] in [EMPTY, FOREST, EAGLE] and (nx, ny) not in visited:
+                            visited.add((nx, ny))
+                            queue.append((nx, ny))
+            if not found:
+                return False
+        return True
 
     def get_tile(self, x, y):
         if 0 <= x < GRID_SIZE and 0 <= y < GRID_SIZE:
