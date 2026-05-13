@@ -24,6 +24,12 @@ COLOR_HUD = (30, 30, 40)         # Darker HUD
 COLOR_UI_TEXT = (220, 220, 240)  # Off-white text
 COLOR_BULLET = (255, 255, 100)   # Glowing yellow bullet
 
+# UI Colors
+COLOR_ACCENT = (0, 255, 200)       # Cyan accent
+COLOR_CARD_BG = (25, 25, 35)       # Card background
+COLOR_CARD_BORDER = (45, 45, 60)   # Card border
+COLOR_SELECTED = (255, 255, 255)   # Selected item white
+
 # Tank Colors
 COLOR_PLAYER = (50, 200, 255)    # Neon Cyan
 COLOR_ENEMY_BASIC = (180, 180, 180)
