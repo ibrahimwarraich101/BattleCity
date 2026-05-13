@@ -192,7 +192,7 @@ class Game:
         controls = [("MOVE", "WASD / ARROWS"), ("FIRE", "SPACEBAR"), ("MOBILE", "VIRTUAL D-PAD")]
         for t, d in controls:
             self.screen.blit(font_m.render(t, True, COLOR_ACCENT), (200, y))
-            self.screen.blit(font_s.render(d, True, (200, 200, 200)), (200, y+30))
+            self.screen.blit(font_s.render(d, True, (200, 200, 220)), (200, y+30))
             y += 80
 
     def draw_mobile_controls(self):
