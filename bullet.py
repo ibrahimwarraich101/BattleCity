@@ -10,20 +10,12 @@ class Bullet:
         self.active = True
 
     def update(self, game_map, tanks, bullets, frame_count):
-        # Move only every 2 ticks for extreme slow motion
+        # Move logic
         if frame_count % 2 != 0:
             return
 
         for _ in range(BULLET_SPEED):
-            dx, dy = self.direction
-            self.x += dx
-            self.y += dy
-
-            # Check screen boundaries
-            if not (0 <= self.x < GRID_SIZE and 0 <= self.y < GRID_SIZE):
-                self.active = False
-                return
-
+            # 1. Check collisions at CURRENT position (to hit adjacent targets)
             # Check tile collisions
             tile = game_map.get_tile(self.x, self.y)
             if tile == BRICK:
@@ -34,7 +26,7 @@ class Bullet:
                 self.active = False
                 return
             elif tile == EAGLE:
-                game_map.set_tile(self.x, self.y, EMPTY) # Destroy eagle
+                game_map.set_tile(self.x, self.y, EMPTY)
                 self.active = False
                 return
 
@@ -53,6 +45,16 @@ class Bullet:
                         self.active = False
                         other.active = False
                         return
+
+            # 2. Move to NEXT position
+            dx, dy = self.direction
+            self.x += dx
+            self.y += dy
+
+            # 3. Check screen boundaries
+            if not (0 <= self.x < GRID_SIZE and 0 <= self.y < GRID_SIZE):
+                self.active = False
+                return
 
     def draw(self, screen):
         rect = pygame.Rect(self.x * TILE_SIZE + 8, self.y * TILE_SIZE + 8, 8, 8)

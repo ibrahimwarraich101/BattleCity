@@ -58,13 +58,26 @@ class HUD:
 
     def _draw_box(self, screen, x, y, w, h, label, value):
         rect = pygame.Rect(x, y, w, h)
-        pygame.draw.rect(screen, (40, 40, 55), rect, border_radius=10)
-        pygame.draw.rect(screen, (100, 100, 130), rect, 2, border_radius=10)
         
-        lbl_surf = self.font_small.render(label, True, (180, 180, 200))
-        screen.blit(lbl_surf, (x + 10, y + 8))
+        # Main body with gradient-like shading
+        pygame.draw.rect(screen, (35, 35, 50), rect, border_radius=12)
+        pygame.draw.rect(screen, (45, 45, 65), (x, y, w, h//2), border_top_left_radius=12, border_top_right_radius=12)
+        
+        # Border
+        pygame.draw.rect(screen, (80, 80, 110), rect, 2, border_radius=12)
+        
+        # Glow effect
+        glow = pygame.Surface((w+4, h+4), pygame.SRCALPHA)
+        pygame.draw.rect(glow, (100, 100, 255, 30), (0, 0, w+4, h+4), border_radius=14)
+        screen.blit(glow, (x-2, y-2))
+        
+        lbl_surf = self.font_small.render(label, True, (160, 170, 200))
+        screen.blit(lbl_surf, (x + 12, y + 8))
         
         val_surf = self.font_main.render(value, True, (255, 255, 255))
+        # Add shadow to value
+        val_shadow = self.font_main.render(value, True, (10, 10, 20))
+        screen.blit(val_shadow, (x + w - val_surf.get_width() - 13, y + 27))
         screen.blit(val_surf, (x + w - val_surf.get_width() - 15, y + 25))
 
     def _draw_stat(self, screen, label, value, pos, color=(200, 200, 220)):

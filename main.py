@@ -26,6 +26,7 @@ class Game:
         self.bullets = []
         self.frame_count = 0
         self.game_map = None
+        self.selected_option = 0
 
     def reset_level(self):
         self.game_map = GameMap(self.level)
@@ -148,7 +149,8 @@ class Game:
             f.write("BATTLE CITY - BOSS FIGHT LOG\n")
             f.write("----------------------------\n")
             for i, stats in enumerate(self.total_stats):
-                f.write(f"Tick {i}: Raw={stats[0]}, Pruned={stats[1]}, Speedup={stats[0]/stats[1]:.2f}x\n")
+                speedup = stats[0]/stats[1] if stats[1] > 0 else 1.0
+                f.write(f"Tick {i}: Raw={stats[0]}, Pruned={stats[1]}, Speedup={speedup:.2f}x\n")
         self.boss_log_saved = True
 
     def start_splash(self, level):
@@ -186,7 +188,13 @@ class Game:
                     sys.exit()
                 if event.type == pygame.KEYDOWN:
                     if self.game_state == "MENU":
-                        if event.key == pygame.K_RETURN: self.start_splash(1)
+                        if event.key == pygame.K_UP or event.key == pygame.K_w:
+                            self.selected_option = (self.selected_option - 1) % 3
+                        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                            self.selected_option = (self.selected_option + 1) % 3
+                        elif event.key == pygame.K_RETURN:
+                            levels = [1, 2, 'B']
+                            self.start_splash(levels[self.selected_option])
                         elif event.key == pygame.K_1: self.start_splash(1)
                         elif event.key == pygame.K_2: self.start_splash(2)
                         elif event.key == pygame.K_b: self.start_splash('B')
@@ -244,57 +252,132 @@ class Game:
             self.frame_count += 1
 
     def draw_menu(self):
-        # Premium Menu with pulse animation
+        # Draw dynamic background
+        self.draw_menu_background()
+        
+        # Overlay for better text readability
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((10, 10, 15, 180))
+        self.screen.blit(overlay, (0, 0))
+
         time = pygame.time.get_ticks()
-        pulse = (math.sin(time * 0.005) + 1) / 2
+        pulse = (math.sin(time * 0.004) + 1) / 2
+        float_y = math.sin(time * 0.002) * 10
         
-        # Title with glow
-        font = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 80, bold=True)
-        title_surf = font.render("BATTLE CITY", True, (255, 255, 0))
-        glow_surf = font.render("BATTLE CITY", True, (100, 100, 0))
-        rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
+        # Title with double glow and floating effect
+        font_title = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 90, bold=True)
+        title_text = "BATTLE CITY"
+        title_center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + float_y)
         
-        # Draw glow
-        for dx, dy in [(-2,0),(2,0),(0,-2),(0,2)]:
-            self.screen.blit(glow_surf, rect.move(dx, dy))
-        self.screen.blit(title_surf, rect)
+        # Outer glow
+        glow_alpha = int(50 + 50 * pulse)
+        glow_surf = font_title.render(title_text, True, (255, 255, 0))
+        glow_surf.set_alpha(glow_alpha)
+        for dx, dy in [(-4,-4), (4,-4), (-4,4), (4,4), (0,-6), (0,6)]:
+            self.screen.blit(glow_surf, glow_surf.get_rect(center=(title_center[0]+dx, title_center[1]+dy)))
+            
+        # Inner glow
+        title_surf = font_title.render(title_text, True, (255, 255, 50))
+        self.screen.blit(title_surf, title_surf.get_rect(center=title_center))
         
         # Subtitle
-        font_sub = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 32)
-        subtitle = font_sub.render("AI ADAPTIVE COMBAT", True, (200, 200, 220))
-        self.screen.blit(subtitle, subtitle.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3 + 70)))
+        font_sub = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 28)
+        subtitle = font_sub.render("AI ADAPTIVE COMBAT", True, (160, 170, 200))
+        sub_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, title_center[1] + 80))
+        self.screen.blit(subtitle, sub_rect)
         
-        # Prompt
-        font_prompt = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 24)
-        alpha = int(150 + 105 * pulse)
-        prompt_color = (alpha, alpha, alpha)
-        prompt = font_prompt.render("PRESS ENTER TO START", True, prompt_color)
-        self.screen.blit(prompt, prompt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)))
+        # Options with selection cursor
+        options = ["STAGE 1 - TRAINING", "STAGE 2 - ADVANCED", "BOSS - ULTIMATE TEST"]
+        font_opt = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 26)
         
-        # Options
-        options = [
-            "Press 1: Stage 1",
-            "Press 2: Stage 2",
-            "Press B: Boss Fight"
-        ]
+        start_y = SCREEN_HEIGHT // 2 + 60
         for i, opt in enumerate(options):
-            opt_surf = font_prompt.render(opt, True, (150, 150, 180))
-            self.screen.blit(opt_surf, opt_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 120 + i * 35)))
+            is_selected = (i == self.selected_option)
+            color = (255, 255, 255) if is_selected else (120, 130, 160)
+            
+            if is_selected:
+                # Selected text with pulse
+                s_pulse = (math.sin(time * 0.01) + 1) / 2
+                color = (255, 200 + 55 * s_pulse, 100 + 155 * s_pulse)
+                
+                # Draw cursor (tank)
+                self.draw_cursor(SCREEN_WIDTH // 2 - 180, start_y + i * 45)
+            
+            opt_surf = font_opt.render(opt, True, color)
+            self.screen.blit(opt_surf, opt_surf.get_rect(center=(SCREEN_WIDTH // 2, start_y + i * 45)))
 
+        # Footer prompt
+        prompt_alpha = int(100 + 155 * pulse)
+        font_p = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 18)
+        prompt = font_p.render("USE ARROW KEYS & ENTER TO START", True, (200, 200, 200))
+        prompt.set_alpha(prompt_alpha)
+        self.screen.blit(prompt, prompt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50)))
+
+    def draw_menu_background(self):
+        # Draw a moving grid/pattern of tiles
+        time = pygame.time.get_ticks() * 0.02
+        for y in range(-1, GRID_SIZE + 1):
+            for x in range(-1, GRID_SIZE + 1):
+                off_x = (time % TILE_SIZE)
+                off_y = (time * 0.5 % TILE_SIZE)
+                rect = pygame.Rect(x * TILE_SIZE + off_x, y * TILE_SIZE + off_y, TILE_SIZE, TILE_SIZE)
+                
+                # Alternate pattern
+                if (x + y) % 5 == 0:
+                    pygame.draw.rect(self.screen, (20, 20, 30), rect)
+                    pygame.draw.rect(self.screen, (30, 30, 45), rect, 1)
+
+    def draw_cursor(self, x, y):
+        # Draw a small player tank as a cursor
+        size = 24
+        rect = pygame.Rect(x - size//2, y - size//2, size, size)
+        pygame.draw.rect(self.screen, COLOR_PLAYER, rect, border_radius=4)
+        pygame.draw.line(self.screen, (0, 0, 0), (x, y), (x + 12, y), 3) # Barrel
+        
     def draw_splash(self):
+        # Animated splash transition
         self.screen.fill(COLOR_BG)
-        font = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 64, bold=True)
+        self.draw_menu_background()
+        
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        self.screen.blit(overlay, (0, 0))
+
+        font_l = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 72, bold=True)
         text = f"STAGE {self.level}" if self.level != 'B' else "ULTIMATE BOSS"
-        surf = font.render(text, True, (255, 255, 255))
-        rect = surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
         
-        # Progress Bar for splash
-        bar_w = 300
+        # Text shadow
+        shadow = font_l.render(text, True, (20, 20, 20))
+        self.screen.blit(shadow, shadow.get_rect(center=(SCREEN_WIDTH // 2 + 4, SCREEN_HEIGHT // 2 + 4)))
+        
+        surf = font_l.render(text, True, (255, 255, 255))
+        self.screen.blit(surf, surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)))
+        
+        # Flavor text
+        font_s = pygame.font.SysFont(['Outfit', 'Segoe UI', 'Arial'], 20)
+        flavors = {
+            1: "Initializing Combat Systems...",
+            2: "Scanning High-Risk Zones...",
+            'B': "Emergency: Alpha-Beta Pruning Engaged!"
+        }
+        flavor = font_s.render(flavors.get(self.level, "Loading..."), True, (150, 160, 200))
+        self.screen.blit(flavor, flavor.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60)))
+
+        # Progress Bar
+        bar_w = 400
+        bar_x = SCREEN_WIDTH // 2 - bar_w // 2
+        bar_y = SCREEN_HEIGHT // 2 + 100
         progress = (STAGE_SPLASH_TIME - self.splash_timer) / STAGE_SPLASH_TIME
-        pygame.draw.rect(self.screen, (40, 40, 60), (SCREEN_WIDTH//2 - bar_w//2, SCREEN_HEIGHT//2 + 60, bar_w, 10), border_radius=5)
-        pygame.draw.rect(self.screen, COLOR_PLAYER, (SCREEN_WIDTH//2 - bar_w//2, SCREEN_HEIGHT//2 + 60, int(bar_w * progress), 10), border_radius=5)
         
-        self.screen.blit(surf, rect)
+        pygame.draw.rect(self.screen, (30, 30, 50), (bar_x, bar_y, bar_w, 8), border_radius=4)
+        pygame.draw.rect(self.screen, COLOR_PLAYER, (bar_x, bar_y, int(bar_w * progress), 8), border_radius=4)
+        
+        # Add a glow to the progress bar
+        if progress > 0:
+            glow_rect = pygame.Rect(bar_x, bar_y - 2, int(bar_w * progress), 12)
+            glow_surf = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (50, 200, 255, 60), (0, 0, glow_rect.width, glow_rect.height), border_radius=6)
+            self.screen.blit(glow_surf, glow_rect)
 
     def draw_debug(self):
         font = pygame.font.SysFont('Arial', 14)
